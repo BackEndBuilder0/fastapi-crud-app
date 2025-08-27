@@ -1,10 +1,53 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>$Title$</title>
+    <meta charset="UTF-8">
+    <title>FastAPI Testing</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #4facfe, #00f2fe);
+            color: white;
+            text-align: center;
+            padding-top: 10%;
+        }
+        h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        p { font-size: 1.1rem; }
+        .box {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 24px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+        a.btn {
+            display: inline-block;
+            margin: 8px;
+            padding: 10px 18px;
+            background: #ffe600;
+            color: #000;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .small { font-size: 0.9rem; color: #f7f7f7; opacity: 0.9; margin-top: 8px; }
+    </style>
 </head>
 <body>
-$END$
+    <div class="box">
+        <h1>Welcome to FastAPI Testing</h1>
+        <p class="small">Use the buttons below to register, login or open API docs.</p>
+
+        <div style="margin-top:16px;">
+            {% if request.cookies.get('user_name') %}
+                <p>You are logged in.</p>
+                <a class="btn" href="/docs">Swagger UI (/docs)</a>
+                <a class="btn" href="/logout">Logout</a>
+            {% else %}
+                <a class="btn" href="/register-page">Register</a>
+                <a class="btn" href="/login-page">Login</a>
+                <a class="btn" href="/docs">Swagger UI (/docs)</a>
+            {% endif %}
+        </div>
+    </div>
 </body>
 </html>

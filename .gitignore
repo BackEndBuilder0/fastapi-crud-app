@@ -1,0 +1,54 @@
+# Python cache / bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pkl
+*.egg-info/
+*.egg
+*.log
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+*.env
+
+# PyCharm / JetBrains IDE
+.idea/
+*.iml
+
+# VSCode (if used)
+.vscode/
+
+# Jupyter Notebooks checkpoints
+.ipynb_checkpoints
+
+# Docker
+*.pid
+*.seed
+*.pid.lock
+
+# System files
+.DS_Store
+Thumbs.db
+
+# pytest / coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Build / dist
+build/
+dist/
+*.spec
+
+# Local databases
+*.db
+*.sqlite3
+
+# Environment secrets
+.env.local
+.env.*.local
+secrets.json

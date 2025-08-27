@@ -1,10 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>$Title$</title>
+    <meta charset="UTF-8">
+    <title>Login - FastAPI</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: linear-gradient(to right, #ff512f, #dd2476); color: white; text-align: center; padding-top: 8%; }
+        .box { background: rgba(0,0,0,0.35); padding: 24px; border-radius: 12px; display: inline-block; }
+        input { margin: 8px 0; padding: 10px; border-radius: 8px; border: none; width: 220px; }
+        button { padding: 10px 18px; border-radius: 8px; border: none; background: #ffe600; color: black; font-weight: bold; cursor: pointer; }
+        a { color: #ffe600; text-decoration: none; }
+    </style>
 </head>
 <body>
-$END$
+    <div class="box">
+        <h1>🔑 Login</h1>
+
+        <!-- This posts form encoded which is what OAuth2PasswordRequestForm expects -->
+        <form method="post" action="/login-form">
+            <input type="text" name="username" placeholder="Username" required><br>
+            <input type="password" name="password" placeholder="Password" required><br>
+            <button type="submit">Login</button>
+        </form>
+
+        <p style="margin-top:12px;">New user? <a href="/register-page">Register</a></p>
+        <p style="margin-top:6px;"><a href="/">Back to Home</a></p>
+    </div>
 </body>
 </html>
