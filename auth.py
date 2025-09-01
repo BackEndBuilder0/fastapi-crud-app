@@ -8,7 +8,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
 # Secret key (in real world, keep in Azure Key Vault or env variables)
-SECRET_KEY = os.environ.get('secret_key')
+SECRET_KEY = os.environ.get('secret_key', 'oewfhqowufhqwouhdiwq3243rwef243')
 # SECRET_KEY = 'huigytdrsetdyfugihojpi657890'
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = os.environ.get('access_token_expire_minute', 30)

@@ -6,12 +6,20 @@ from sqlalchemy.exc import SQLAlchemyError
 from app_config import app
 from database import database, notes, users
 from schemas import Note, NoteIn, UserIn, UserOut
-from fastapi.openapi.docs import get_swagger_ui_html
-
+from redis_cache import get_redis_client
+import json
 from datetime import timedelta
 from fastapi.security import OAuth2PasswordRequestForm
 from auth import create_access_token, verify_password, get_password_hash, decode_access_token, \
     ACCESS_TOKEN_EXPIRE_MINUTES
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,  # or DEBUG for more details
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 templates = Jinja2Templates(directory="templates")
 
@@ -92,8 +100,11 @@ async def login_form(request: Request, username: str = Form(...), password: str 
     db_user = await database.fetch_one(query)
 
     if not db_user or not verify_password(password, db_user["hashed_password"]):
-        return templates.TemplateResponse("login.html", {"request": request, "error": "Invalid credentials"})
-
+        return templates.TemplateResponse(
+            "login.html",
+            {"request": request, "error": "Invalid credentials"},
+            status_code=200
+        )
 
     # set JWT in cookie
     response = RedirectResponse(url="/", status_code=303)
@@ -132,9 +143,17 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 @app.post("/notes/", response_model=Note, status_code=status.HTTP_201_CREATED)
 async def create_note(note: NoteIn, token: dict = Depends(decode_access_token)):
     try:
+        logger.info(f"Creating note with text='{note.text}', completed={note.completed}")
         query = notes.insert().values(text=note.text, completed=note.completed)
         last_record_id = await database.execute(query)
-        return {**note.dict(), "id": last_record_id}
+
+        # cache the new note directly
+        redis = await get_redis_client()
+        note_data = {**note.dict(), "id": last_record_id}
+        await redis.set(f"note:{last_record_id}", json.dumps(note_data))
+        logger.info(f"Note {last_record_id} created and cached in Redis")
+
+        return note_data
     except SQLAlchemyError as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
@@ -143,14 +162,23 @@ async def create_note(note: NoteIn, token: dict = Depends(decode_access_token)):
 @app.put("/notes/{note_id}/", response_model=Note, status_code=status.HTTP_200_OK)
 async def update_note(note_id: int, payload: NoteIn, token: dict = Depends(decode_access_token)):
     try:
+        logger.info(f"Updating note {note_id} with payload={payload.dict()}")
         query = notes.update().where(notes.c.id == note_id).values(
             text=payload.text, completed=payload.completed
         )
         result = await database.execute(query)
         if not result:
+            logger.warning(f"Note {note_id} not found for update")
             raise HTTPException(status_code=404, detail=f"Note with id {note_id} not found")
-        return {**payload.dict(), "id": note_id}
+        # update cache for that note
+        redis = await get_redis_client()
+        note_data = {**payload.dict(), "id": note_id}
+        await redis.set(f"note:{note_id}", json.dumps(note_data))
+        logger.info(f"Note {note_id} updated and cache refreshed")
+
+        return note_data
     except SQLAlchemyError as e:
+        logger.error(f"Database error while updating note {note_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
@@ -167,13 +195,25 @@ async def read_notes(skip: int = 0, take: int = 20, token: dict = Depends(decode
 # Read single note
 @app.get("/notes/{note_id}/", response_model=Note, status_code=status.HTTP_200_OK)
 async def read_single_note(note_id: int, token: dict = Depends(decode_access_token)):
+    redis = await get_redis_client()
+    cached_note = await redis.get(f"note:{note_id}")
+    if cached_note:
+        logger.info(f"Cache hit for note {note_id}")
+        return json.loads(cached_note)
+    logger.info(f"Cache miss for note {note_id}, querying DB")
     try:
         query = notes.select().where(notes.c.id == note_id)
         data = await database.fetch_one(query)
         if not data:
+            logger.warning(f"No note found in DB with id {note_id}")
             raise HTTPException(status_code=404, detail=f"No data found for ID: {note_id}")
+
+        # add to cache for next time
+        await redis.set(f"note:{note_id}", json.dumps(dict(data)))
+        logger.info(f"Note {note_id} added to Redis cache")
         return data
     except SQLAlchemyError as e:
+        logger.error(f"Database error while reading note {note_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
@@ -181,10 +221,18 @@ async def read_single_note(note_id: int, token: dict = Depends(decode_access_tok
 @app.delete("/notes/{note_id}/", status_code=status.HTTP_200_OK)
 async def delete_note(note_id: int, token: dict = Depends(decode_access_token)):
     try:
+        logger.info(f"Deleting note {note_id}")
         query = notes.delete().where(notes.c.id == note_id)
         result = await database.execute(query)
         if not result:
+            logger.warning(f"Note {note_id} not found for delete")
             raise HTTPException(status_code=404, detail=f"Note with id {note_id} not found")
+
+        # remove that note from cache
+        redis = await get_redis_client()
+        await redis.delete(f"note:{note_id}")
+        logger.info(f"Note {note_id} deleted from DB and removed from cache")
+
         return {"message": f"Note with id: {note_id} deleted successfully!"}
     except SQLAlchemyError as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
